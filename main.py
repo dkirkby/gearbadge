@@ -18,16 +18,17 @@ xc1, yc1 = 120 * 1024, 120 * 1024
 xc2, yc2 = (120 + 2 * R) * 1024, 120 * 1024
 xc3, yc3 = 120 * 1024, (120 + 2 * R) * 1024
 
-XPLOT1 = array.array('h', [0] * len(X))
-YPLOT1 = array.array('h', [0] * len(Y))
-XPLOT1b = array.array('h', [0] * len(X))
-YPLOT1b = array.array('h', [0] * len(Y))
+XPLOT1 = bytearray(len(X))
+YPLOT1 = bytearray(len(Y))
+XPLOT1b = bytearray(len(X))
+YPLOT1b = bytearray(len(Y))
+
 XPLOT2 = array.array('h', [0] * len(X))
 YPLOT2 = array.array('h', [0] * len(Y))
-XPLOT2b = array.array('h', [0] * len(X))
-YPLOT2b = array.array('h', [0] * len(Y))
 XPLOT3 = array.array('h', [0] * len(X))
 YPLOT3 = array.array('h', [0] * len(Y))
+XPLOT2b = array.array('h', [0] * len(X))
+YPLOT2b = array.array('h', [0] * len(Y))
 XPLOT3b = array.array('h', [0] * len(X))
 YPLOT3b = array.array('h', [0] * len(Y))
 
@@ -36,7 +37,6 @@ M = N // 4
 
 def visible(x, y):
     return (x >= 0 and x < 240 and y >= 0 and y < 240)
-
 
 undraw = False
 
@@ -61,9 +61,6 @@ while True:
             XPLOT3[i] = (xc3 + c3 * X[i] + s3 * Y[i]) >> 10
             YPLOT3[i] = (yc3 + c3 * Y[i] - s3 * X[i]) >> 10
 
-        # Clear the screen
-        #screen.tft.fill(gc9a01.WHITE)
-        #clearBuffer()
         # Draw the new coordinates into an off-screen buffer
         for i in range(len(XPLOT1)-1):
             if undraw:
