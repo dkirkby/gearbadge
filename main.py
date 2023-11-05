@@ -98,6 +98,7 @@ ratio = Nsun / Nplanet
 def getSpin(rollDeg):
     spinDeg = rollDeg * (1 + ratio) - phiPitchSun * ratio
     spinDeg += 180 - phiPitchPlanet
+    spinDeg += 2 # this is a cosmetic fudge factor
     # convert to index offset in C,S
     return int(round((spinDeg % 360) / 360 * len(C)))
 
@@ -107,6 +108,9 @@ spinL = getSpin(180)
 spinB = getSpin(270)
 
 screen = Screen()
+
+# Offset from right to left or bottom to top in screen pixels.
+DR = 2 * (Rsun + Rplanet)
 
 # Center of central gear in screen pixels x 1024
 xc, yc = 120 * 1024, 120 * 1024
@@ -118,9 +122,6 @@ xcB, ycB = 120 * 1024, (120 + Rsun + Rplanet) * 1024
 xcL, ycL = xcR - DR * 1024, ycR
 # Center of top-side planet gear in screen pixels x 1024
 xcT, ycT = xcB, ycB - DR * 1024
-
-# Offset from right to left or bottom to top in screen pixels.
-DR = 2 * (Rsun + Rplanet)
 
 # Central sun gear is fully contained within [0,240] so only needs 1 byte per coordinate.
 XPLOT = bytearray(len(Xsun))
