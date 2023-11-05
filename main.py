@@ -78,34 +78,47 @@ def makeGear(radius, nteeth, pressureAngleDeg=20, clearanceFraction=0.25, npath=
 C = array.array('h', [128, 128, 128, 128, 127, 127, 127, 126, 126, 125, 124, 123, 122, 122, 121, 119, 118, 117, 116, 114, 113, 111, 110, 108, 106, 105, 103, 101, 99, 97, 95, 93, 91, 88, 86, 84, 81, 79, 76, 74, 71, 68, 66, 63, 60, 58, 55, 52, 49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 9, 6, 3, 0, -3, -6, -9, -13, -16, -19, -22, -25, -28, -31, -34, -37, -40, -43, -46, -49, -52, -55, -58, -60, -63, -66, -68, -71, -74, -76, -79, -81, -84, -86, -88, -91, -93, -95, -97, -99, -101, -103, -105, -106, -108, -110, -111, -113, -114, -116, -117, -118, -119, -121, -122, -122, -123, -124, -125, -126, -126, -127, -127, -127, -128, -128, -128, -128, -128, -128, -128, -127, -127, -127, -126, -126, -125, -124, -123, -122, -122, -121, -119, -118, -117, -116, -114, -113, -111, -110, -108, -106, -105, -103, -101, -99, -97, -95, -93, -91, -88, -86, -84, -81, -79, -76, -74, -71, -68, -66, -63, -60, -58, -55, -52, -49, -46, -43, -40, -37, -34, -31, -28, -25, -22, -19, -16, -13, -9, -6, -3, 0, 3, 6, 9, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58, 60, 63, 66, 68, 71, 74, 76, 79, 81, 84, 86, 88, 91, 93, 95, 97, 99, 101, 103, 105, 106, 108, 110, 111, 113, 114, 116, 117, 118, 119, 121, 122, 122, 123, 124, 125, 126, 126, 127, 127, 127, 128, 128, 128])
 S = array.array('h', [0, 3, 6, 9, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58, 60, 63, 66, 68, 71, 74, 76, 79, 81, 84, 86, 88, 91, 93, 95, 97, 99, 101, 103, 105, 106, 108, 110, 111, 113, 114, 116, 117, 118, 119, 121, 122, 122, 123, 124, 125, 126, 126, 127, 127, 127, 128, 128, 128, 128, 128, 128, 128, 127, 127, 127, 126, 126, 125, 124, 123, 122, 122, 121, 119, 118, 117, 116, 114, 113, 111, 110, 108, 106, 105, 103, 101, 99, 97, 95, 93, 91, 88, 86, 84, 81, 79, 76, 74, 71, 68, 66, 63, 60, 58, 55, 52, 49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 9, 6, 3, 0, -3, -6, -9, -13, -16, -19, -22, -25, -28, -31, -34, -37, -40, -43, -46, -49, -52, -55, -58, -60, -63, -66, -68, -71, -74, -76, -79, -81, -84, -86, -88, -91, -93, -95, -97, -99, -101, -103, -105, -106, -108, -110, -111, -113, -114, -116, -117, -118, -119, -121, -122, -122, -123, -124, -125, -126, -126, -127, -127, -127, -128, -128, -128, -128, -128, -128, -128, -127, -127, -127, -126, -126, -125, -124, -123, -122, -122, -121, -119, -118, -117, -116, -114, -113, -111, -110, -108, -106, -105, -103, -101, -99, -97, -95, -93, -91, -88, -86, -84, -81, -79, -76, -74, -71, -68, -66, -63, -60, -58, -55, -52, -49, -46, -43, -40, -37, -34, -31, -28, -25, -22, -19, -16, -13, -9, -6, -3])
 
+# Constants for 90 phase shift in the loookup tables.
+N = len(C)
+M = N // 4
+
 # Precompute a polygon approximation to the central sun gear. Values are pixel coordinates multiplied by 8 and rounded to integers.
-Rsun = 70
 Nsun = 12
-X, Y = makeGear(Rsun, Nsun)
+Rsun = 65
+Xsun, Ysun = makeGear(Rsun, Nsun)
+
+# Precompute the planet gear design.
+Nplanet = 6
+Rplanet = Rsun * Nplanet / Nsun
+Xplanet, Yplanet = makeGear(Rplanet, Nplanet)
+Rplanet = int(round(Rplanet))
 
 screen = Screen()
 
-DR = 4 * Rsun
+# Center of central gear in screen pixels x 1024
 xc1, yc1 = 120 * 1024, 120 * 1024
-xc2, yc2 = (120 + 2 * Rsun) * 1024, 120 * 1024
-xc3, yc3 = 120 * 1024, (120 + 2 * Rsun) * 1024
+# Center of right-side planet gear in screen pixels x 1024
+xc2, yc2 = (120 + Rsun + Rplanet) * 1024, 120 * 1024
+# Center of lower-side planet gear in screen pixels x 1024
+xc3, yc3 = 120 * 1024, (120 + Rsun + Rplanet) * 1024
+# Offset from right to left or bottom to top in screen pixels.
+DR = 2 * (Rsun + Rplanet)
 
-XPLOT1 = bytearray(len(X))
-YPLOT1 = bytearray(len(Y))
-XPLOT1b = bytearray(len(X))
-YPLOT1b = bytearray(len(Y))
+# Central sun gear is fully contained within [0,240] so only needs 1 byte per coordinate.
+XPLOT1 = bytearray(len(Xsun))
+YPLOT1 = bytearray(len(Ysun))
+XPLOT1b = bytearray(len(Xsun))
+YPLOT1b = bytearray(len(Ysun))
 
-XPLOT2 = array.array('h', [0] * len(X))
-YPLOT2 = array.array('h', [0] * len(Y))
-XPLOT3 = array.array('h', [0] * len(X))
-YPLOT3 = array.array('h', [0] * len(Y))
-XPLOT2b = array.array('h', [0] * len(X))
-YPLOT2b = array.array('h', [0] * len(Y))
-XPLOT3b = array.array('h', [0] * len(X))
-YPLOT3b = array.array('h', [0] * len(Y))
-
-N = len(C)
-M = N // 4
+# Offset planet gears might extend beyond [0,240] so need 2 bytes per coordinate.
+XPLOT2 = array.array('h', [0] * len(Xplanet))
+YPLOT2 = array.array('h', [0] * len(Yplanet))
+XPLOT3 = array.array('h', [0] * len(Xplanet))
+YPLOT3 = array.array('h', [0] * len(Yplanet))
+XPLOT2b = array.array('h', [0] * len(Xplanet))
+YPLOT2b = array.array('h', [0] * len(Yplanet))
+XPLOT3b = array.array('h', [0] * len(Xplanet))
+YPLOT3b = array.array('h', [0] * len(Yplanet))
 
 def visible(x, y):
     return (x >= 0 and x < 240 and y >= 0 and y < 240)
@@ -125,13 +138,14 @@ while True:
         s = S[t]
         c3 = C[(t + M) % N]
         s3 = S[(t + M) % N]
-        for i in range(len(X)):
-            XPLOT1[i] = (xc1 + c * X[i] - s * Y[i]) >> 10
-            YPLOT1[i] = (yc1 + c * Y[i] + s * X[i]) >> 10
-            XPLOT2[i] = (xc2 + c * X[i] + s * Y[i]) >> 10
-            YPLOT2[i] = (yc2 + c * Y[i] - s * X[i]) >> 10
-            XPLOT3[i] = (xc3 + c3 * X[i] + s3 * Y[i]) >> 10
-            YPLOT3[i] = (yc3 + c3 * Y[i] - s3 * X[i]) >> 10
+        for i in range(len(Xsun)):
+            XPLOT1[i] = (xc1 + c * Xsun[i] - s * Ysun[i]) >> 10
+            YPLOT1[i] = (yc1 + c * Ysun[i] + s * Xsun[i]) >> 10
+        for i in range(len(Xplanet)):
+            XPLOT2[i] = (xc2 + c * Xplanet[i] + s * Yplanet[i]) >> 10
+            YPLOT2[i] = (yc2 + c * Yplanet[i] - s * Xplanet[i]) >> 10
+            XPLOT3[i] = (xc3 + c3 * Xplanet[i] + s3 * Yplanet[i]) >> 10
+            YPLOT3[i] = (yc3 + c3 * Yplanet[i] - s3 * Xplanet[i]) >> 10
 
         # Draw the new coordinates into an off-screen buffer
         for i in range(len(XPLOT1)-1):
@@ -162,6 +176,7 @@ while True:
         for i in range(len(XPLOT1)):
             XPLOT1b[i] = XPLOT1[i]
             YPLOT1b[i] = YPLOT1[i]
+        for i in range(len(XPLOT2)):
             XPLOT2b[i] = XPLOT2[i]
             YPLOT2b[i] = YPLOT2[i]
             XPLOT3b[i] = XPLOT3[i]
