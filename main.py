@@ -71,7 +71,7 @@ def makeGear(radius, nteeth, pressureAngleDeg=20, clearanceFraction=0.25, npath=
     Xgear = array.array('h', Xgear)
     Ygear = array.array('h', Ygear)
 
-    return Xgear, Ygear
+    return Xgear, Ygear, 180 / PI * phiPitch
 
 # Precomputed sine and cosine values for 256 steps around a circle. Values are multiplied by 128 and rounded to integers.
 # I really only need a quarter cycle of one of these but the full tables save some index calculations.
@@ -85,102 +85,144 @@ M = N // 4
 # Precompute a polygon approximation to the central sun gear. Values are pixel coordinates multiplied by 8 and rounded to integers.
 Nsun = 12
 Rsun = 65
-Xsun, Ysun = makeGear(Rsun, Nsun)
+Xsun, Ysun, phiPitchSun = makeGear(Rsun, Nsun)
 
 # Precompute the planet gear design.
 Nplanet = 6
 Rplanet = Rsun * Nplanet / Nsun
-Xplanet, Yplanet = makeGear(Rplanet, Nplanet)
+Xplanet, Yplanet, phiPitchPlanet = makeGear(Rplanet, Nplanet)
 Rplanet = int(round(Rplanet))
+
+# Calculate the rotations of each planet gear.
+ratio = Nsun / Nplanet
+def getSpin(rollDeg):
+    spinDeg = rollDeg * (1 + ratio) - phiPitchSun * ratio
+    spinDeg += 180 - phiPitchPlanet
+    # convert to index offset in C,S
+    return int(round((spinDeg % 360) / 360 * len(C)))
+
+spinR = getSpin(0)
+spinT = getSpin(90)
+spinL = getSpin(180)
+spinB = getSpin(270)
 
 screen = Screen()
 
 # Center of central gear in screen pixels x 1024
-xc1, yc1 = 120 * 1024, 120 * 1024
+xc, yc = 120 * 1024, 120 * 1024
 # Center of right-side planet gear in screen pixels x 1024
-xc2, yc2 = (120 + Rsun + Rplanet) * 1024, 120 * 1024
+xcR, ycR = (120 + Rsun + Rplanet) * 1024, 120 * 1024
 # Center of lower-side planet gear in screen pixels x 1024
-xc3, yc3 = 120 * 1024, (120 + Rsun + Rplanet) * 1024
+xcB, ycB = 120 * 1024, (120 + Rsun + Rplanet) * 1024
+# Center of left-side planet gear in screen pixels x 1024
+xcL, ycL = xcR - DR * 1024, ycR
+# Center of top-side planet gear in screen pixels x 1024
+xcT, ycT = xcB, ycB - DR * 1024
+
 # Offset from right to left or bottom to top in screen pixels.
 DR = 2 * (Rsun + Rplanet)
 
 # Central sun gear is fully contained within [0,240] so only needs 1 byte per coordinate.
-XPLOT1 = bytearray(len(Xsun))
-YPLOT1 = bytearray(len(Ysun))
-XPLOT1b = bytearray(len(Xsun))
-YPLOT1b = bytearray(len(Ysun))
+XPLOT = bytearray(len(Xsun))
+YPLOT = bytearray(len(Ysun))
+XPLOTb = bytearray(len(Xsun))
+YPLOTb = bytearray(len(Ysun))
 
 # Offset planet gears might extend beyond [0,240] so need 2 bytes per coordinate.
-XPLOT2 = array.array('h', [0] * len(Xplanet))
-YPLOT2 = array.array('h', [0] * len(Yplanet))
-XPLOT3 = array.array('h', [0] * len(Xplanet))
-YPLOT3 = array.array('h', [0] * len(Yplanet))
-XPLOT2b = array.array('h', [0] * len(Xplanet))
-YPLOT2b = array.array('h', [0] * len(Yplanet))
-XPLOT3b = array.array('h', [0] * len(Xplanet))
-YPLOT3b = array.array('h', [0] * len(Yplanet))
+XPLOTR = array.array('h', [0] * len(Xplanet))
+YPLOTR = array.array('h', [0] * len(Yplanet))
+XPLOTB = array.array('h', [0] * len(Xplanet))
+YPLOTB = array.array('h', [0] * len(Yplanet))
+XPLOTL = array.array('h', [0] * len(Xplanet))
+YPLOTL = array.array('h', [0] * len(Yplanet))
+XPLOTT = array.array('h', [0] * len(Xplanet))
+YPLOTT = array.array('h', [0] * len(Yplanet))
+XPLOTRb = array.array('h', [0] * len(Xplanet))
+YPLOTRb = array.array('h', [0] * len(Yplanet))
+XPLOTBb = array.array('h', [0] * len(Xplanet))
+YPLOTBb = array.array('h', [0] * len(Yplanet))
+XPLOTLb = array.array('h', [0] * len(Xplanet))
+YPLOTLb = array.array('h', [0] * len(Yplanet))
+XPLOTTb = array.array('h', [0] * len(Xplanet))
+YPLOTTb = array.array('h', [0] * len(Yplanet))
 
 def visible(x, y):
     return (x >= 0 and x < 240 and y >= 0 and y < 240)
 
 undraw = False
 
-FG = gc9a01.BLUE
-BG = gc9a01.WHITE
+FG = gc9a01.GREEN
+BG = gc9a01.BLACK
 
 # Clear the screen
 screen.tft.fill(BG)
+
+iratio = int(round(ratio))
 
 while True:
     for t in range(N):
         # Calculate the rotated gear coordinates
         c = C[t]
         s = S[t]
-        c3 = C[(t + M) % N]
-        s3 = S[(t + M) % N]
         for i in range(len(Xsun)):
-            XPLOT1[i] = (xc1 + c * Xsun[i] - s * Ysun[i]) >> 10
-            YPLOT1[i] = (yc1 + c * Ysun[i] + s * Xsun[i]) >> 10
+            XPLOT[i] = (xc + c * Xsun[i] - s * Ysun[i]) >> 10
+            YPLOT[i] = (yc + c * Ysun[i] + s * Xsun[i]) >> 10
+        cR = C[(iratio * t + spinR) % N]
+        sR = S[(iratio * t + spinR) % N]
+        cT = C[(iratio * t + spinT) % N]
+        sT = S[(iratio * t + spinT) % N]
+        cL = C[(iratio * t + spinL) % N]
+        sL = S[(iratio * t + spinL) % N]
+        cB = C[(iratio * t + spinB) % N]
+        sB = S[(iratio * t + spinB) % N]
         for i in range(len(Xplanet)):
-            XPLOT2[i] = (xc2 + c * Xplanet[i] + s * Yplanet[i]) >> 10
-            YPLOT2[i] = (yc2 + c * Yplanet[i] - s * Xplanet[i]) >> 10
-            XPLOT3[i] = (xc3 + c3 * Xplanet[i] + s3 * Yplanet[i]) >> 10
-            YPLOT3[i] = (yc3 + c3 * Yplanet[i] - s3 * Xplanet[i]) >> 10
+            XPLOTR[i] = (xcR + cR * Xplanet[i] + sR * Yplanet[i]) >> 10
+            YPLOTR[i] = (ycR + cR * Yplanet[i] - sR * Xplanet[i]) >> 10
+            XPLOTB[i] = (xcB + cB * Xplanet[i] + sB * Yplanet[i]) >> 10
+            YPLOTB[i] = (ycB + cB * Yplanet[i] - sB * Xplanet[i]) >> 10
+            XPLOTL[i] = (xcL + cL * Xplanet[i] + sL * Yplanet[i]) >> 10
+            YPLOTL[i] = (ycL + cL * Yplanet[i] - sL * Xplanet[i]) >> 10
+            XPLOTT[i] = (xcT + cT * Xplanet[i] + sT * Yplanet[i]) >> 10
+            YPLOTT[i] = (ycT + cT * Yplanet[i] - sT * Xplanet[i]) >> 10
 
         # Draw the new coordinates into an off-screen buffer
-        for i in range(len(XPLOT1)-1):
+        for i in range(len(XPLOT)-1):
             if undraw:
-                screen.tft.line(XPLOT1b[i], YPLOT1b[i], XPLOT1b[i+1], YPLOT1b[i+1], BG)
-            screen.tft.line(XPLOT1[i], YPLOT1[i], XPLOT1[i+1], YPLOT1[i+1], FG)
-        for i in range(len(XPLOT2)-1):
+                screen.tft.line(XPLOTb[i], YPLOTb[i], XPLOTb[i+1], YPLOTb[i+1], BG)
+            screen.tft.line(XPLOT[i], YPLOT[i], XPLOT[i+1], YPLOT[i+1], FG)
+        for i in range(len(XPLOTR)-1):
             if undraw:
-                screen.tft.line(XPLOT2b[i], YPLOT2b[i], XPLOT2b[i+1], YPLOT2b[i+1], BG)
-            if visible(XPLOT1[i], YPLOT1[i]) or visible(XPLOT1[i+1], YPLOT1[i+1]):
-               screen.tft.line(XPLOT2[i], YPLOT2[i], XPLOT2[i+1], YPLOT2[i+1], FG)
-        for i in range(len(XPLOT2)-1):
+                screen.tft.line(XPLOTRb[i], YPLOTRb[i], XPLOTRb[i+1], YPLOTRb[i+1], BG)
+            if visible(XPLOTR[i], YPLOTR[i]) or visible(XPLOTR[i+1], YPLOTR[i+1]):
+               screen.tft.line(XPLOTR[i], YPLOTR[i], XPLOTR[i+1], YPLOTR[i+1], FG)
+        for i in range(len(XPLOTB)-1):
             if undraw:
-                screen.tft.line(XPLOT2b[i] - DR, YPLOT2b[i], XPLOT2b[i+1] - DR, YPLOT2b[i+1], BG)
-            if visible(XPLOT2[i] - DR, YPLOT2[i]) or visible(XPLOT2[i+1] - DR, YPLOT2[i+1]):
-                screen.tft.line(XPLOT2[i] - DR, YPLOT2[i], XPLOT2[i+1] - DR, YPLOT2[i+1], FG)
-        for i in range(len(XPLOT3)-1):
+                screen.tft.line(XPLOTBb[i], YPLOTBb[i], XPLOTBb[i+1], YPLOTBb[i+1], BG)
+            if visible(XPLOTB[i], YPLOTB[i]) or visible(XPLOTB[i+1], YPLOTB[i+1]):
+                screen.tft.line(XPLOTB[i], YPLOTB[i], XPLOTB[i+1], YPLOTB[i+1], FG)
+        for i in range(len(XPLOTL)-1):
             if undraw:
-                screen.tft.line(XPLOT3b[i], YPLOT3b[i], XPLOT3b[i+1], YPLOT3b[i+1], BG)
-            if visible(XPLOT3[i], YPLOT3[i]) or visible(XPLOT3[i+1], YPLOT3[i+1]):
-                screen.tft.line(XPLOT3[i], YPLOT3[i], XPLOT3[i+1], YPLOT3[i+1], FG)
-        for i in range(len(XPLOT3)-1):
+                screen.tft.line(XPLOTLb[i], YPLOTLb[i], XPLOTLb[i+1], YPLOTLb[i+1], BG)
+            if visible(XPLOTL[i], YPLOTL[i]) or visible(XPLOTL[i+1], YPLOTL[i+1]):
+                screen.tft.line(XPLOTL[i], YPLOTL[i], XPLOTL[i+1], YPLOTL[i+1], FG)
+        for i in range(len(XPLOTT)-1):
             if undraw:
-                screen.tft.line(XPLOT3b[i], YPLOT3b[i] - DR, XPLOT3b[i+1], YPLOT3b[i+1] - DR, BG)
-            if visible(XPLOT3[i], YPLOT3[i] - DR) or visible(XPLOT3[i+1], YPLOT3[i+1] - DR):
-                screen.tft.line(XPLOT3[i], YPLOT3[i] - DR, XPLOT3[i+1], YPLOT3[i+1] - DR, FG)
+                screen.tft.line(XPLOTTb[i], YPLOTTb[i], XPLOTTb[i+1], YPLOTTb[i+1], BG)
+            if visible(XPLOTT[i], YPLOTT[i]) or visible(XPLOTT[i+1], YPLOTT[i+1]):
+                screen.tft.line(XPLOTT[i], YPLOTT[i], XPLOTT[i+1], YPLOTT[i+1], FG)
         # Save coordinates of the lines just drawn so we can undraw them for the next frame
-        for i in range(len(XPLOT1)):
-            XPLOT1b[i] = XPLOT1[i]
-            YPLOT1b[i] = YPLOT1[i]
-        for i in range(len(XPLOT2)):
-            XPLOT2b[i] = XPLOT2[i]
-            YPLOT2b[i] = YPLOT2[i]
-            XPLOT3b[i] = XPLOT3[i]
-            YPLOT3b[i] = YPLOT3[i]
+        for i in range(len(XPLOT)):
+            XPLOTb[i] = XPLOT[i]
+            YPLOTb[i] = YPLOT[i]
+        for i in range(len(XPLOTR)):
+            XPLOTRb[i] = XPLOTR[i]
+            YPLOTRb[i] = YPLOTR[i]
+            XPLOTBb[i] = XPLOTB[i]
+            YPLOTBb[i] = YPLOTB[i]
+            XPLOTLb[i] = XPLOTL[i]
+            YPLOTLb[i] = YPLOTL[i]
+            XPLOTTb[i] = XPLOTT[i]
+            YPLOTTb[i] = YPLOTT[i]
         undraw = True
         # Pause until the next frame
         time.sleep_ms(5)
