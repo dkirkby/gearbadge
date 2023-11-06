@@ -1,3 +1,5 @@
+"""Code to drive the Hackaday Supercon 2023 badge.
+"""
 import time
 import array
 import math
@@ -5,6 +7,7 @@ import math
 import gc9a01
 from screen import Screen
 
+# Design an involute gear. Based on https://observablehq.com/@dkirkby/gears.
 def makeGear(radius, nteeth, pressureAngleDeg=20, clearanceFraction=0.25, npath=6, mult=8):
 
     PI = math.pi
@@ -88,6 +91,9 @@ Rsun = 65
 Xsun, Ysun, phiPitchSun = makeGear(Rsun, Nsun)
 
 # Precompute the planet gear design.
+# The number of planet gear teeth must exactly divide the number of sun gear teeth
+# to simplify the calculation of the offset into the C,S tables. A better solution
+# would be to replace the sin,cos tables with direct calls to the math library.
 Nplanet = 6
 Rplanet = Rsun * Nplanet / Nsun
 Xplanet, Yplanet, phiPitchPlanet = makeGear(Rplanet, Nplanet)
