@@ -6,3 +6,5 @@ More details about the badge are [here](https://hackaday.com/2023/10/18/2023-hac
 
 I took inspiration from the round display to display round gears, arranged as a [planetary gearset](https://en.wikipedia.org/wiki/Epicyclic_gearing).
 The code to design the gears is adapted from this [Observable notebook](https://observablehq.com/@dkirkby/gears).
+
+![badge animation](https://raw.githubusercontent.com/dkirkby/gearbadge/main/gearbadge.gif)
